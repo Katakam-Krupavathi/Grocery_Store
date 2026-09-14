@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}FreshMart Grocery{% endblock %}</title>
+  <title>{% block title %}FreshMart Grocery{% endblock %} - Fresh & Organic</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <style>
@@ -76,6 +76,13 @@
           <li class="nav-item">
             <a class="nav-link {% if request.path == '/orders' %}active{% endif %}" href="{{ url_for('main.orders_page') }}">My Orders</a>
           </li>
+          {% if user.role == 'admin' %}
+          <li class="nav-item">
+            <a class="nav-link text-warning fw-semibold {% if request.path.startswith('/admin') %}active{% endif %}" href="{{ url_for('admin.admin_dashboard') }}">
+              <i class="bi bi-shield-lock-fill"></i> Admin Panel
+            </a>
+          </li>
+          {% endif %}
           {% endif %}
         </ul>
 
@@ -93,6 +100,11 @@
             <ul class="dropdown-menu dropdown-menu-end shadow">
               <li><span class="dropdown-item-text text-muted small">Signed in as <strong>{{ user.role }}</strong></span></li>
               <li><hr class="dropdown-divider"></li>
+              {% if user.role == 'admin' %}
+              <li><a class="dropdown-item" href="{{ url_for('admin.admin_dashboard') }}"><i class="bi bi-speedometer2 text-success"></i> Dashboard</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('admin.admin_analytics_page') }}"><i class="bi bi-graph-up text-primary"></i> Analytics</a></li>
+              <li><hr class="dropdown-divider"></li>
+              {% endif %}
               <li><a class="dropdown-item" href="{{ url_for('main.orders_page') }}"><i class="bi bi-bag"></i> Orders</a></li>
               <li><a class="dropdown-item text-danger" href="{{ url_for('main.logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
             </ul>
@@ -131,18 +143,18 @@
     function showToast(message, isError = false) {
       const toastContainer = document.getElementById('toastContainer');
       const toastEl = document.createElement('div');
-      toastEl.className = 	oast align-items-center text-white  border-0;
+      toastEl.className = `toast align-items-center text-white ${isError ? 'bg-danger' : 'bg-success'} border-0`;
       toastEl.setAttribute('role', 'alert');
       toastEl.setAttribute('aria-live', 'assertive');
       toastEl.setAttribute('aria-atomic', 'true');
-      toastEl.innerHTML = 
+      toastEl.innerHTML = `
         <div class="d-flex">
           <div class="toast-body">
-            <i class="bi  me-2"></i> 
+            <i class="bi ${isError ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'} me-2"></i> ${message}
           </div>
           <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
         </div>
-      ;
+      `;
       toastContainer.appendChild(toastEl);
       const toast = new bootstrap.Toast(toastEl, { delay: 3500 });
       toast.show();
