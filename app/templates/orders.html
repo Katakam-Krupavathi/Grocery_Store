@@ -2,6 +2,58 @@
 
 {% block title %}My Orders - FreshMart Grocery{% endblock %}
 
+{% block extra_head %}
+<style>
+  .timeline-steps {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+  }
+  .timeline-steps::before {
+    content: "";
+    position: absolute;
+    top: 15px;
+    left: 20px;
+    right: 20px;
+    height: 3px;
+    background: #e9ecef;
+    z-index: 1;
+  }
+  .timeline-step {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    background: white;
+    padding: 0 8px;
+  }
+  .timeline-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #e9ecef;
+    color: #6c757d;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+  }
+  .timeline-step.completed .timeline-icon {
+    background: #198754;
+    color: white;
+  }
+  .timeline-step.active .timeline-icon {
+    background: #0d6efd;
+    color: white;
+    box-shadow: 0 0 0 4px rgba(13,110,253,0.2);
+  }
+  .timeline-step.cancelled .timeline-icon {
+    background: #dc3545;
+    color: white;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
   <h2 class="fw-bold mb-4"><i class="bi bi-bag-check text-success"></i> Order History</h2>
@@ -17,12 +69,41 @@
             <small class="text-muted">{{ order.created_at.strftime('%B %d, %Y at %I:%M %p') if order.created_at else '' }}</small>
           </div>
           <div class="d-flex align-items-center gap-3">
-            <span class="badge {% if order.status == 'paid' %}bg-success{% elif order.status == 'pending' %}bg-warning text-dark{% elif order.status == 'cancelled' %}bg-danger{% else %}bg-secondary{% endif %} fs-6 text-uppercase px-3 py-2">
+            <span class="badge {% if order.status == 'paid' %}bg-success{% elif order.status == 'shipped' %}bg-primary{% elif order.status == 'delivered' %}bg-info text-dark{% elif order.status == 'pending' %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6 text-uppercase px-3 py-2">
               {{ order.status }}
             </span>
             <span class="fs-5 fw-bold text-success">${{ '%.2f'|format(order.total_amount) }}</span>
           </div>
         </div>
+
+        <!-- Order Timeline Progress -->
+        <div class="card-body bg-light border-bottom py-3">
+          {% if order.status == 'cancelled' %}
+          <div class="text-center text-danger py-2">
+            <i class="bi bi-x-circle-fill me-1"></i> <strong>This order was cancelled.</strong>
+          </div>
+          {% else %}
+          <div class="timeline-steps">
+            <div class="timeline-step {% if order.status in ['pending', 'paid', 'shipped', 'delivered'] %}completed{% endif %}">
+              <div class="timeline-icon"><i class="bi bi-check-lg"></i></div>
+              <div class="small fw-semibold">Placed</div>
+            </div>
+            <div class="timeline-step {% if order.status in ['paid', 'shipped', 'delivered'] %}completed{% elif order.status == 'pending' %}active{% endif %}">
+              <div class="timeline-icon"><i class="bi bi-credit-card"></i></div>
+              <div class="small fw-semibold">Paid</div>
+            </div>
+            <div class="timeline-step {% if order.status in ['shipped', 'delivered'] %}completed{% elif order.status == 'paid' %}active{% endif %}">
+              <div class="timeline-icon"><i class="bi bi-truck"></i></div>
+              <div class="small fw-semibold">Shipped</div>
+            </div>
+            <div class="timeline-step {% if order.status == 'delivered' %}completed{% endif %}">
+              <div class="timeline-icon"><i class="bi bi-house-door"></i></div>
+              <div class="small fw-semibold">Delivered</div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
         <div class="card-body">
           <h6 class="text-muted text-uppercase small fw-bold mb-3">Items in this order:</h6>
           <div class="table-responsive">
@@ -48,7 +129,7 @@
             </table>
           </div>
         </div>
-        <div class="card-footer bg-light d-flex justify-content-end gap-2 py-2">
+        <div class="card-footer bg-white d-flex justify-content-end gap-2 py-2">
           {% if order.status == 'pending' %}
           <a href="{{ url_for('stripe.create_checkout_session', order_id=order.id) }}" class="btn btn-success btn-sm">
             <i class="bi bi-credit-card"></i> Pay Now
