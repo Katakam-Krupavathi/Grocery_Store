@@ -1,13 +1,14 @@
-import stripe
+﻿import stripe
 from flask import Flask, jsonify, redirect, url_for, request
 from .config import Config
-from .extensions import db, migrate, jwt, mail, swagger
+from .extensions import db, migrate, jwt, mail, swagger, limiter
 from .auth.routes import auth_bp
 from .products.routes import products_bp
 from .cart.routes import cart_bp
 from .orders.routes import orders_bp
 from .payments.stripe_webhook import stripe_bp
 from .main.routes import main_bp
+from .admin.routes import admin_bp
 
 def create_app(config_class=Config):
     app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -19,6 +20,7 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     mail.init_app(app)
     swagger.init_app(app)
+    limiter.init_app(app)
 
     # JWT Error handlers distinguishing JSON API vs Web Pages
     @jwt.unauthorized_loader
@@ -45,6 +47,7 @@ def create_app(config_class=Config):
     app.register_blueprint(cart_bp, url_prefix="/api/cart")
     app.register_blueprint(orders_bp, url_prefix="/api/orders")
     app.register_blueprint(stripe_bp, url_prefix="/api/payments")
+    app.register_blueprint(admin_bp)
     app.register_blueprint(main_bp)
 
     # Configure Stripe key
