@@ -1,117 +1,241 @@
-﻿# FreshMart Grocery Store Platform 🛒
+﻿# FreshMart Grocery Store 🛒
 
-A full-stack, production-ready e-commerce grocery store web application built with **Flask**, **SQLAlchemy**, **PostgreSQL / SQLite**, **Flask-JWT-Extended**, and **Stripe Checkout**.
+[![CI](https://github.com/Katakam-Krupavathi/Grocery_Store/actions/workflows/ci.yml/badge.svg)](https://github.com/Katakam-Krupavathi/Grocery_Store/actions/workflows/ci.yml)
+[![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/)
+[![Framework](https://img.shields.io/badge/framework-Flask%203.x-green.svg)](https://flask.palletsprojects.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-31%20passed-brightgreen.svg)](tests/)
+
+FreshMart is a full-stack, production-ready e-commerce grocery web application built with **Flask**, **SQLAlchemy**, **PostgreSQL / SQLite**, **Flask-JWT-Extended**, **Stripe Checkout**, and **ReportLab**.
+
+---
+
+## 📑 Table of Contents
+
+- [Key Features](#-key-features)
+- [System Architecture](#-system-architecture)
+- [Project Layout](#-project-layout)
+- [Getting Started](#-getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Environment Variables](#environment-variables)
+  - [Database Initialization](#database-initialization)
+  - [Running the Application](#running-the-application)
+- [API Reference](#-api-reference)
+- [Automated Testing](#-automated-testing)
+- [Docker Deployment](#-docker-deployment)
+- [License](#-license)
 
 ---
 
 ## 🌟 Key Features
 
-- **Modern Web Storefront**: Responsive catalog with real-time search, category filtering, product inventory badges, and AJAX shopping cart.
-- **Unified Dual Authentication**: Seamless JWT authentication supporting both browser cookies (`httpOnly`) and API client `Authorization: Bearer <token>` headers.
-- **Shopping Cart & Checkout**: Interactive cart with quantity controls, subtotal calculation, inventory stock validation, and promotional coupon codes.
-- **Stripe Payment Gateway**: Secure hosted Stripe Checkout sessions with asynchronous webhook fulfillment on `checkout.session.completed`.
-- **Automated Invoicing & Emails**: Itemized HTML order confirmation emails with auto-generated PDF invoices delivered via asynchronous background workers.
-- **Admin Operations Dashboard**: Role-protected management portal (`/admin`) for tracking order statuses (`pending` &rarr; `paid` &rarr; `shipped` &rarr; `delivered`), inventory levels, low-stock warnings, and revenue analytics.
-- **Smart Recommendations**: "Customers also bought" co-occurrence queries highlighting related products during checkout.
-- **Zero-Config Local Dev**: Defaults to SQLite with zero setup required, while fully production-ready with PostgreSQL via Docker or environment variables.
-- **Comprehensive Automated Tests**: Full pytest test suite with in-memory SQLite defaults covering authentication, products, cart operations, and orders.
+### 🛍️ Customer Storefront & Catalog
+- **Interactive Catalog**: Real-time product search, category filtering, and stock availability indicators (`In Stock`, `Low Stock`, `Out of Stock`).
+- **Smart Recommendations**: "Customers Also Bought" suggestions powered by SQL co-occurrence queries over historical order data.
+- **Cart & Discounts**: Dynamic cart with real-time quantity adjustments, subtotal calculation, and promo code support (e.g., `SUMMER15`).
+
+### 🔐 Unified Dual-Mode Authentication
+- **Seamless Navigation**: Supports `httpOnly` JWT cookies for server-rendered web pages and standard `Authorization: Bearer <token>` headers for REST API clients.
+- **Rate-Limited Security**: Protected with **Flask-Limiter** against brute-force attacks on login (10/min) and registration (5/min).
+
+### 💳 Stripe Checkout & Invoicing
+- **Hosted Checkout**: Frictionless Stripe Checkout integration with automated webhook handling (`checkout.session.completed`).
+- **PDF Invoice Generation**: Auto-generates branded PDF invoices via **ReportLab** and delivers them attached to order confirmation emails.
+- **Visual Order Tracker**: 4-stage tracking timeline (`Order Placed` &rarr; `Payment Confirmed` &rarr; `Shipped` &rarr; `Delivered`).
+
+### 📊 Admin Operations & Analytics
+- **Operations Portal (`/admin`)**: Role-protected dashboard for managing orders, updating delivery statuses, and monitoring inventory levels.
+- **Live Analytics (`/admin/analytics`)**: Interactive **Chart.js** visualizations for revenue trends, order status distribution, and top-selling products.
 
 ---
 
 ## 🏛️ System Architecture
 
-For in-depth architectural diagrams, purchase sequence flows, and data model entity-relationship diagrams, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For comprehensive architecture diagrams, purchase flow sequences, and data models, please see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ```
-                      +-------------------+
-                      |   Client Layer    |
-                      | (Browser / REST)  |
-                      +---------+---------+
-                                |
-               +----------------v----------------+
-               |      Flask Application          |
-               |                                 |
-               |  +---------------------------+  |
-               |  |  main_bp: UI Pages        |  |
-               |  |  auth_bp: JWT Auth        |  |
-               |  |  products_bp: Catalog     |  |
-               |  |  cart_bp: Cart Ops        |  |
-               |  |  orders_bp: Checkout      |  |
-               |  |  admin_bp: Analytics      |  |
-               |  |  stripe_bp: Webhooks      |  |
-               |  +---------------------------+  |
-               +--------+--------------+---------+
-                        |              |
-              +---------v---+    +-----v---------+
-              | PostgreSQL  |    |  Stripe API   |
-              | / SQLite DB |    | & SMTP Server |
-              +-------------+    +---------------+
++-------------------------------------------------------------------------+
+|                              CLIENT LAYER                               |
+|       Web Browser (SSR / AJAX)      |     REST API / Mobile Clients     |
++-------------------------------------+-----------------------------------+
+                                      |
++-------------------------------------v-----------------------------------+
+|                        FLASK APPLICATION LAYER                          |
+|                                                                         |
+|  [main_bp]      Pages: /, /products, /cart, /orders, /login, /register  |
+|  [auth_bp]      Auth: /api/auth (Login, Register, JWT, Me)              |
+|  [products_bp]  Catalog: /api/products (CRUD, Search, Recommendations)  |
+|  [cart_bp]      Cart: /api/cart (Add, Update, Remove, Apply Coupon)     |
+|  [orders_bp]    Orders: /api/orders (Checkout, History, Details)        |
+|  [admin_bp]     Admin: /admin, /api/admin (Stats, Status, Coupons)      |
+|  [stripe_bp]    Payments: /api/payments (Checkout Sessions, Webhook)    |
++-------------------------------------+-----------------------------------+
+                                      |
++-------------------------------------v-----------------------------------+
+|                           SERVICES & DATA                               |
+|   PostgreSQL / SQLite (SQLAlchemy)  |   Stripe API & SMTP Mail Server   |
++-------------------------------------------------------------------------+
 ```
 
 ---
 
-## 🚀 Quick Start
+## 📂 Project Layout
 
-### 1. Prerequisites
-- Python 3.11 or 3.12
-- Git
+```text
+Grocery_Store/
+├── app/
+│   ├── admin/             # Admin portal and analytics routes
+│   ├── auth/              # Authentication & JWT endpoints
+│   ├── cart/              # Shopping cart & coupon handlers
+│   ├── main/              # Customer-facing web page routes
+│   ├── orders/            # Order processing & checkout logic
+│   ├── payments/          # Stripe checkout & webhook listener
+│   ├── products/          # Catalog management & recommendations
+│   ├── services/          # Email dispatch & ReportLab PDF generator
+│   ├── templates/         # Jinja2 HTML templates & Admin UI
+│   ├── config.py          # Unified application configuration
+│   ├── extensions.py      # SQLAlchemy, JWT, Mail, Limiter instances
+│   ├── models.py          # Database models (User, Product, Order, etc.)
+│   └── __init__.py        # App factory & blueprint registration
+├── docs/
+│   └── ARCHITECTURE.md    # Architecture & workflow documentation
+├── migrations/            # Alembic database migration scripts
+├── tests/                 # Full automated test suite (31 tests)
+├── .env.example           # Template for environment variables
+├── .github/workflows/     # GitHub Actions Continuous Integration
+├── Dockerfile             # Container definition
+├── docker-compose.yml     # Multi-container setup with PostgreSQL
+├── requirements.txt       # Project dependencies
+├── run.py                 # Application entry point
+└── LICENSE                # MIT License
+```
 
-### 2. Clone and Setup
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- **Python**: `3.11` or `3.12`
+- **Git**
+
+### Installation
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/Katakam-Krupavathi/Grocery_Store.git
 cd Grocery_Store
 
-# Create and activate virtual environment
+# 2. Create and activate a virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\Activate.ps1
+# On macOS/Linux:
+source .venv/bin/activate
+# On Windows (PowerShell):
+.venv\Scripts\Activate.ps1
 
-# Install dependencies
+# 3. Install required dependencies
 pip install -r requirements.txt
 ```
 
-### 3. Environment Configuration
-Create a `.env` file based on `.env.example`:
+### Environment Variables
+Copy `.env.example` to `.env` and adjust settings as needed:
 ```bash
 cp .env.example .env
 ```
 
 | Variable | Default (Local) | Description |
 |---|---|---|
-| `DATABASE_URL` | `sqlite:///dev.db` | Connection URI (PostgreSQL or SQLite) |
-| `SECRET_KEY` | `change-me` | Flask session secret key |
-| `JWT_SECRET_KEY` | `change-me-jwt` | Secret key used for signing JWTs |
-| `STRIPE_SECRET_KEY` | - | Stripe API Secret Key (`sk_test_...`) |
-| `STRIPE_WEBHOOK_SECRET` | - | Stripe Webhook Secret (`whsec_...`) |
-| `MAIL_SERVER` | `smtp.sendgrid.net` | SMTP host for sending invoice emails |
+| `DATABASE_URL` | `sqlite:///dev.db` | Database connection URI (SQLite or PostgreSQL) |
+| `SECRET_KEY` | `change-me-secret` | Flask session secret key |
+| `JWT_SECRET_KEY` | `change-me-jwt` | Secret key used for signing JWT tokens |
+| `STRIPE_SECRET_KEY` | `sk_test_...` | Stripe secret API key |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_...` | Stripe webhook signing secret |
+| `MAIL_SERVER` | `smtp.sendgrid.net` | SMTP host for delivering PDF invoices |
+| `MAIL_PORT` | `587` | SMTP port |
+| `MAIL_USERNAME` | `apikey` | SMTP username |
+| `MAIL_PASSWORD` | `your_api_key` | SMTP password / API token |
 
-### 4. Database Setup & Initial Admin
+### Database Initialization
 ```bash
-# Run migrations
+# Apply database schema migrations
 flask db upgrade
 
-# Create the default administrator account
+# Seed default administrator account (admin@example.com / admin123)
 python create_admin.py
 ```
 
-### 5. Run Development Server
+### Running the Application
 ```bash
 python run.py
 ```
-Open [http://localhost:8000](http://localhost:8000) in your browser.
+Open [http://localhost:8000](http://localhost:8000) in your web browser.
 
 ---
 
-## 🧪 Running Automated Tests
+## 📡 API Reference
 
-Run the full pytest suite:
+### Authentication (`/api/auth`)
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | Register new user account | Public (Rate-limited) |
+| `POST` | `/api/auth/login` | Authenticate and obtain JWT | Public (Rate-limited) |
+| `POST` | `/api/auth/logout` | Clear auth cookies and logout | Public |
+| `GET` | `/api/auth/me` | Fetch authenticated user profile | Required |
+
+### Products Catalog (`/api/products`)
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `GET` | `/api/products/` | List products (with `q`, `category`, `page`) | Public |
+| `GET` | `/api/products/<id>` | Get product details | Public |
+| `GET` | `/api/products/<id>/recommendations` | Get "Customers Also Bought" items | Public |
+| `POST` | `/api/products/` | Create new product | Admin |
+| `PUT` | `/api/products/<id>` | Update product details or stock | Admin |
+| `DELETE` | `/api/products/<id>` | Remove product from catalog | Admin |
+
+### Shopping Cart (`/api/cart`)
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `GET` | `/api/cart/` | View current user's cart items & total | Required |
+| `POST` | `/api/cart/add` | Add product to cart | Required |
+| `POST` | `/api/cart/apply-coupon` | Validate promo code & calculate discount | Required |
+| `PUT` | `/api/cart/update/<id>` | Update item quantity | Required |
+| `DELETE` | `/api/cart/remove/<id>` | Remove single item from cart | Required |
+| `DELETE` | `/api/cart/clear` | Empty cart | Required |
+
+### Orders & Checkout (`/api/orders`)
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `POST` | `/api/orders/` | Place order & generate Stripe checkout URL | Required |
+| `GET` | `/api/orders/` | List order history | Required |
+| `GET` | `/api/orders/<id>` | Fetch specific order details & items | Required |
+
+### Administration (`/api/admin`)
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `GET` | `/api/admin/stats` | KPI counters & sales breakdown | Admin |
+| `PUT` | `/api/admin/orders/<id>/status` | Update order status (`paid`, `shipped`, etc.) | Admin |
+| `POST` | `/api/admin/coupons` | Create a new promotional discount code | Admin |
+
+---
+
+## 🧪 Automated Testing
+
+The project includes **31 automated tests** running on an in-memory SQLite database (`sqlite:///:memory:`) by default.
+
 ```bash
+# Run all test suites
 pytest -v
 ```
 
+### GitHub Actions CI
+On every push and pull request, `.github/workflows/ci.yml` runs tests in parallel across:
+- **Python 3.11** with in-memory SQLite & PostgreSQL 15
+- **Python 3.12** with in-memory SQLite & PostgreSQL 15
+
 ---
 
-## 🐳 Running with Docker
+## 🐳 Docker Deployment
+
+Run the complete platform and PostgreSQL database with Docker Compose:
 
 ```bash
 docker-compose up --build
@@ -122,3 +246,5 @@ docker-compose up --build
 ## 📜 License
 
 This project is licensed under the [MIT License](LICENSE) - see the LICENSE file for details.
+
+Developed with ❤️ by **Katakam-Krupavathi**.
