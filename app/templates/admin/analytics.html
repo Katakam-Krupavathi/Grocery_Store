@@ -1,0 +1,105 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Store Analytics - FreshMart Admin{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow text-success"></i> Sales & Revenue Analytics</h2>
+      <p class="text-muted small mb-0">Real-time metrics, order distribution, and top product performances</p>
+    </div>
+    <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <!-- Top Products Chart -->
+    <div class="col-lg-6">
+      <div class="card shadow-sm border-0 h-100 p-4">
+        <h5 class="fw-bold mb-3">Top Selling Products</h5>
+        <div class="chart-container" style="position: relative; height: 300px;">
+          <canvas id="topProductsChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order Status Breakdown -->
+    <div class="col-lg-6">
+      <div class="card shadow-sm border-0 h-100 p-4">
+        <h5 class="fw-bold mb-3">Order Status Breakdown</h5>
+        <div class="chart-container" style="position: relative; height: 300px;">
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  async function loadAnalytics() {
+    const token = localStorage.getItem('access_token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    try {
+      const res = await fetch('/api/admin/stats', { headers });
+      const data = await res.json();
+
+      if (res.ok) {
+        // Render Top Products Chart
+        const topLabels = data.top_products.map(p => p.name);
+        const topCounts = data.top_products.map(p => p.units_sold);
+
+        new Chart(document.getElementById('topProductsChart'), {
+          type: 'bar',
+          data: {
+            labels: topLabels.length > 0 ? topLabels : ['No sales yet'],
+            datasets: [{
+              label: 'Units Sold',
+              data: topCounts.length > 0 ? topCounts : [0],
+              backgroundColor: '#198754',
+              borderRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } }
+          }
+        });
+
+        // Render Status Breakdown Chart
+        const statusLabels = Object.keys(data.status_breakdown || {});
+        const statusCounts = Object.values(data.status_breakdown || {});
+
+        new Chart(document.getElementById('statusChart'), {
+          type: 'doughnut',
+          data: {
+            labels: statusLabels.length > 0 ? statusLabels.map(s => s.toUpperCase()) : ['No orders'],
+            datasets: [{
+              data: statusCounts.length > 0 ? statusCounts : [1],
+              backgroundColor: ['#ffc107', '#198754', '#0d6efd', '#0dcaf0', '#dc3545']
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Failed to load analytics data', e);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadAnalytics);
+</script>
+{% endblock %}
