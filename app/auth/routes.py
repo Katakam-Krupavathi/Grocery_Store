@@ -7,7 +7,7 @@ from flask_jwt_extended import (
     set_access_cookies,
     unset_jwt_cookies
 )
-from ..extensions import db
+from ..extensions import db, limiter
 from ..models import User
 
 auth_bp = Blueprint("auth", __name__)
@@ -18,6 +18,7 @@ def _get_request_data():
     return request.form.to_dict() or {}
 
 @auth_bp.route("/register", methods=["POST"])
+@limiter.limit("5 per minute")
 def register():
     data = _get_request_data()
     email = (data.get("email") or "").strip().lower()
@@ -49,6 +50,7 @@ def register():
     return resp, 201
 
 @auth_bp.route("/login", methods=["POST"])
+@limiter.limit("10 per minute")
 def login():
     data = _get_request_data()
     email = (data.get("email") or "").strip().lower()
