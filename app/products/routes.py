@@ -51,14 +51,14 @@ def get_recommendations(product_id):
         return jsonify({"msg": "Product not found"}), 404
 
     # 1. Find orders containing this product
-    order_ids_subq = db.session.query(OrderItem.order_id).filter(OrderItem.product_id == product_id).subquery()
+    order_ids_select = db.session.query(OrderItem.order_id).filter(OrderItem.product_id == product_id).scalar_subquery()
 
     # 2. Find other products bought in those orders, ordered by frequency
     co_occurred = db.session.query(
         OrderItem.product_id,
         func.count(OrderItem.id).label("count")
     ).filter(
-        OrderItem.order_id.in_(order_ids_subq),
+        OrderItem.order_id.in_(order_ids_select),
         OrderItem.product_id != product_id
     ).group_by(OrderItem.product_id).order_by(func.count(OrderItem.id).desc()).limit(4).all()
 
