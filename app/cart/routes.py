@@ -1,7 +1,8 @@
 ﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from datetime import datetime, timezone
 from ..extensions import db
-from ..models import CartItem, Product
+from ..models import CartItem, Product, Coupon
 
 cart_bp = Blueprint("cart", __name__)
 
@@ -60,6 +61,26 @@ def add_to_cart():
 
     db.session.commit()
     return jsonify({"msg": "Item added to cart", "item": existing.to_dict()}), 200
+
+@cart_bp.route("/apply-coupon", methods=["POST"])
+@jwt_required()
+def apply_coupon():
+    data = _get_request_data()
+    code = (data.get("code") or "").strip().upper()
+    if not code:
+        return jsonify({"msg": "Coupon code is required"}), 400
+
+    coupon = Coupon.query.filter(Coupon.code == code, Coupon.active.is_(True)).first()
+    if not coupon:
+        return jsonify({"msg": "Invalid or inactive promo code"}), 404
+
+    if coupon.expiry_date and coupon.expiry_date < datetime.now(timezone.utc):
+        return jsonify({"msg": "This promo code has expired"}), 400
+
+    return jsonify({
+        "msg": f"Promo code '{coupon.code}' applied ({coupon.discount_percent}% off)",
+        "coupon": coupon.to_dict()
+    }), 200
 
 @cart_bp.route("/update/<int:cart_id>", methods=["PUT", "POST"])
 @jwt_required()
