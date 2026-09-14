@@ -1,23 +1,45 @@
 ﻿from flask import Blueprint, request, jsonify, url_for
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from datetime import datetime, timezone
 from ..extensions import db
-from ..models import CartItem, Product, Order, OrderItem
+from ..models import CartItem, Product, Order, OrderItem, Coupon
 
 orders_bp = Blueprint("orders", __name__)
+
+def _get_request_data():
+    if request.is_json:
+        return request.get_json(silent=True) or {}
+    return request.form.to_dict() or {}
 
 @orders_bp.route("/", methods=["POST"])
 @jwt_required()
 def create_order():
     user_id = int(get_jwt_identity())
+    data = _get_request_data()
     cart_items = CartItem.query.filter_by(user_id=user_id).all()
     if not cart_items:
         return jsonify({"msg": "Your cart is empty"}), 400
 
-    order = Order(user_id=user_id, total_amount=0, status="pending")
+    coupon_code = (data.get("coupon_code") or "").strip().upper()
+    shipping_address = (data.get("shipping_address") or "").strip()
+
+    coupon = None
+    if coupon_code:
+        coupon = Coupon.query.filter(Coupon.code == coupon_code, Coupon.active.is_(True)).first()
+        if coupon and coupon.expiry_date and coupon.expiry_date < datetime.now(timezone.utc):
+            coupon = None
+
+    order = Order(
+        user_id=user_id,
+        total_amount=0,
+        status="pending",
+        shipping_address=shipping_address or "Standard Delivery Address",
+        coupon_id=coupon.id if coupon else None
+    )
     db.session.add(order)
     db.session.flush()
 
-    total = 0.0
+    subtotal = 0.0
     for ci in cart_items:
         product = db.session.get(Product, ci.product_id)
         if not product or product.stock < ci.quantity:
@@ -28,7 +50,7 @@ def create_order():
 
         unit_price = float(product.price) if product.price is not None else 0.0
         line_price = unit_price * ci.quantity
-        total += line_price
+        subtotal += line_price
 
         oi = OrderItem(
             order_id=order.id,
@@ -39,7 +61,12 @@ def create_order():
         product.stock -= ci.quantity
         db.session.add(oi)
 
-    order.total_amount = round(total, 2)
+    discount = 0.0
+    if coupon:
+        discount = round(subtotal * (float(coupon.discount_percent) / 100.0), 2)
+
+    order.discount_amount = discount
+    order.total_amount = max(0.0, round(subtotal - discount, 2))
 
     for ci in cart_items:
         db.session.delete(ci)
