@@ -1,0 +1,154 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}FreshMart Grocery{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    :root {
+      --primary-green: #198754;
+      --light-green: #e8f5e9;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background-color: #f8f9fa;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+    .navbar-brand {
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .main-content {
+      flex: 1;
+      padding-bottom: 2rem;
+    }
+    .footer {
+      background-color: #212529;
+      color: #adb5bd;
+      padding: 1.5rem 0;
+      margin-top: auto;
+    }
+    .card {
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 10px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .card:hover {
+      box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    }
+    .badge-stock {
+      font-size: 0.8rem;
+    }
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1090;
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-success sticky-top shadow-sm">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('main.home') }}">
+        <i class="bi bi-basket2-fill"></i> FreshMart
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarContent">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('main.home') }}">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == '/products' %}active{% endif %}" href="{{ url_for('main.products_page') }}">Products</a>
+          </li>
+          {% if user %}
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == '/orders' %}active{% endif %}" href="{{ url_for('main.orders_page') }}">My Orders</a>
+          </li>
+          {% endif %}
+        </ul>
+
+        <ul class="navbar-nav ms-auto align-items-center gap-2">
+          {% if user %}
+          <li class="nav-item">
+            <a class="btn btn-outline-light position-relative btn-sm px-3" href="{{ url_for('main.cart_page') }}">
+              <i class="bi bi-cart3"></i> Cart
+            </a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle text-white" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+              <i class="bi bi-person-circle"></i> {{ user.name or user.email }}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              <li><span class="dropdown-item-text text-muted small">Signed in as <strong>{{ user.role }}</strong></span></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="{{ url_for('main.orders_page') }}"><i class="bi bi-bag"></i> Orders</a></li>
+              <li><a class="dropdown-item text-danger" href="{{ url_for('main.logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+            </ul>
+          </li>
+          {% else %}
+          <li class="nav-item">
+            <a class="nav-link text-white" href="{{ url_for('main.login_page') }}">Login</a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-light text-success fw-semibold btn-sm px-3" href="{{ url_for('main.register_page') }}">Register</a>
+          </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Flash / Alert Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Main Content Container -->
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer text-center">
+    <div class="container">
+      <p class="mb-1">&copy; 2026 FreshMart Grocery Store. All rights reserved.</p>
+      <small class="text-secondary">Secure payments powered by Stripe &bull; Fast local delivery</small>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function showToast(message, isError = false) {
+      const toastContainer = document.getElementById('toastContainer');
+      const toastEl = document.createElement('div');
+      toastEl.className = 	oast align-items-center text-white  border-0;
+      toastEl.setAttribute('role', 'alert');
+      toastEl.setAttribute('aria-live', 'assertive');
+      toastEl.setAttribute('aria-atomic', 'true');
+      toastEl.innerHTML = 
+        <div class="d-flex">
+          <div class="toast-body">
+            <i class="bi  me-2"></i> 
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      ;
+      toastContainer.appendChild(toastEl);
+      const toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+      toast.show();
+      toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+    }
+  </script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

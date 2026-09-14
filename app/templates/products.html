@@ -1,33 +1,127 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Products</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-<div class="container mt-5">
-  <h2>Products</h2>
-  <div class="row">
-    {% for p in products %}
-    <div class="col-md-3">
-      <div class="card mb-3">
-        <div class="card-body">
-          <h5 class="card-title">{{ p.name }}</h5>
-          <p class="card-text">Price: ${{ p.price }}</p>
-          <form method="POST" action="{{ url_for('cart.add_to_cart') }}">
-            <input type="hidden" name="product_id" value="{{ p.id }}">
-            <div class="mb-2">
-              <input type="number" class="form-control" name="quantity" value="1" min="1">
-            </div>
-            <button type="submit" class="btn btn-primary">Add to Cart</button>
-          </form>
+﻿{% extends 'base.html' %}
+
+{% block title %}Products - FreshMart Grocery{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <!-- Search & Filter Bar -->
+  <div class="card p-3 mb-4 shadow-sm border-0">
+    <form method="GET" action="{{ url_for('main.products_page') }}" class="row g-2 align-items-center">
+      <div class="col-md-6">
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input type="text" name="q" class="form-control" placeholder="Search vegetables, fruits, dairy, snacks..." value="{{ search_query }}">
         </div>
       </div>
-    </div>
-    {% endfor %}
+      <div class="col-md-4">
+        <select name="category" class="form-select" onchange="this.form.submit()">
+          <option value="all" {% if not selected_category or selected_category == 'all' %}selected{% endif %}>All Categories</option>
+          {% for cat in categories %}
+          <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-success w-100">Filter</button>
+      </div>
+    </form>
   </div>
-  <a href="{{ url_for('cart.view_cart') }}" class="btn btn-success mt-3">View Cart</a>
+
+  <!-- Products Grid -->
+  <div class="row g-4">
+    {% if products %}
+      {% for p in products %}
+      <div class="col-sm-6 col-md-4 col-lg-3">
+        <div class="card h-100 shadow-sm border-0">
+          <div class="bg-light text-center py-4 rounded-top position-relative" style="font-size: 3rem;">
+            ??
+            <span class="position-absolute top-0 start-0 m-2 badge bg-success">{{ p.category or 'Grocery' }}</span>
+            {% if p.stock <= 0 %}
+            <span class="position-absolute top-0 end-0 m-2 badge bg-danger">Out of Stock</span>
+            {% elif p.stock < 10 %}
+            <span class="position-absolute top-0 end-0 m-2 badge bg-warning text-dark">Low Stock ({{ p.stock }})</span>
+            {% else %}
+            <span class="position-absolute top-0 end-0 m-2 badge bg-secondary">{{ p.stock }} in stock</span>
+            {% endif %}
+          </div>
+          <div class="card-body d-flex flex-column">
+            <h5 class="card-title fs-6 fw-bold mb-1">{{ p.name }}</h5>
+            <p class="card-text text-muted small flex-grow-1">{{ p.description or 'Fresh and high quality product.' }}</p>
+            <div class="d-flex justify-content-between align-items-baseline mt-2 mb-3">
+              <span class="fs-5 fw-bold text-success">${{ '%.2f'|format(p.price) }}</span>
+              <span class="text-muted small">/ {{ p.uom or 'unit' }}</span>
+            </div>
+
+            {% if p.stock > 0 %}
+            <div class="input-group">
+              <input type="number" id="qty-{{ p.id }}" class="form-control text-center" value="1" min="1" max="{{ p.stock }}" style="max-width: 70px;">
+              <button class="btn btn-success flex-grow-1 add-to-cart-btn" data-product-id="{{ p.id }}">
+                <i class="bi bi-cart-plus"></i> Add
+              </button>
+            </div>
+            {% else %}
+            <button class="btn btn-secondary w-100" disabled>Sold Out</button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="col-12 text-center py-5">
+        <i class="bi bi-inbox text-muted display-3 mb-3 d-block"></i>
+        <h4>No products found</h4>
+        <p class="text-muted">Try adjusting your search query or filter criteria.</p>
+        <a href="{{ url_for('main.products_page') }}" class="btn btn-outline-success">Clear Filters</a>
+      </div>
+    {% endif %}
+  </div>
 </div>
-</body>
-</html>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const productId = this.getAttribute('data-product-id');
+      const qtyInput = document.getElementById(`qty-${productId}`);
+      const quantity = parseInt(qtyInput ? qtyInput.value : 1, 10);
+
+      this.disabled = true;
+      const originalText = this.innerHTML;
+      this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+
+      try {
+        const token = localStorage.getItem('access_token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch('/api/cart/add', {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({ product_id: productId, quantity: quantity })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          showToast(`Added ${quantity} item(s) to cart!`);
+        } else if (response.status === 401) {
+          showToast('Please log in to add items to your cart.', true);
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 1000);
+        } else {
+          showToast(data.msg || 'Could not add item to cart.', true);
+        }
+      } catch (err) {
+        showToast('Error communicating with server.', true);
+      } finally {
+        this.disabled = false;
+        this.innerHTML = originalText;
+      }
+    });
+  });
+</script>
+{% endblock %}

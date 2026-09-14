@@ -1,53 +1,90 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
+from flask_jwt_extended import (
+    create_access_token,
+    jwt_required,
+    get_jwt_identity,
+    get_jwt,
+    set_access_cookies,
+    unset_jwt_cookies
+)
 from ..extensions import db
 from ..models import User
-from flask_jwt_extended import create_access_token
-from flask import render_template
-import json
 
 auth_bp = Blueprint("auth", __name__)
 
+def _get_request_data():
+    if request.is_json:
+        return request.get_json(silent=True) or {}
+    return request.form.to_dict() or {}
+
 @auth_bp.route("/register", methods=["POST"])
 def register():
-    data = request.get_json() or {}
-    email = data.get("email")
+    data = _get_request_data()
+    email = (data.get("email") or "").strip().lower()
     password = data.get("password")
-    name = data.get("name")
+    name = (data.get("name") or "").strip()
+
     if not email or not password:
-        return jsonify({"msg":"email and password required"}), 400
+        return jsonify({"msg": "Email and password are required"}), 400
+
     if User.query.filter_by(email=email).first():
-        return jsonify({"msg":"user exists"}), 400
-    user = User(email=email, name=name)
+        return jsonify({"msg": "User with this email already exists"}), 400
+
+    user = User(email=email, name=name or email.split("@")[0])
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
-    
-    # FIX: serialize identity as JSON string
-    access = create_access_token(identity=json.dumps({"id": user.id, "role": user.role}))
-    
-    return jsonify({"access_token": access, "user": {"id": user.id, "email": user.email}}), 201
+
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims={"role": user.role, "email": user.email, "name": user.name}
+    )
+
+    resp = jsonify({
+        "msg": "Registered successfully",
+        "access_token": access_token,
+        "user": user.to_dict()
+    })
+    set_access_cookies(resp, access_token)
+    return resp, 201
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    data = request.get_json() or {}
-    email = data.get("email")
+    data = _get_request_data()
+    email = (data.get("email") or "").strip().lower()
     password = data.get("password")
+
+    if not email or not password:
+        return jsonify({"msg": "Email and password are required"}), 400
+
     user = User.query.filter_by(email=email).first()
     if not user or not user.check_password(password):
-        return jsonify({"msg":"invalid credentials"}), 401
-    
-    # FIX: serialize identity as JSON string
-    access = create_access_token(identity=json.dumps({"id": user.id, "role": user.role}))
-    
-    return jsonify({"access_token": access, "user": {"id": user.id, "email": user.email}}), 200
+        return jsonify({"msg": "Invalid email or password"}), 401
 
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims={"role": user.role, "email": user.email, "name": user.name}
+    )
 
-# Render login page
-@auth_bp.route("/login_page")
-def login_page():
-    return render_template("login.html")
+    resp = jsonify({
+        "msg": "Login successful",
+        "access_token": access_token,
+        "user": user.to_dict()
+    })
+    set_access_cookies(resp, access_token)
+    return resp, 200
 
-# Render register page
-@auth_bp.route("/register_page")
-def register_page():
-    return render_template("register.html")
+@auth_bp.route("/logout", methods=["POST", "GET"])
+def logout():
+    resp = jsonify({"msg": "Logged out successfully"})
+    unset_jwt_cookies(resp)
+    return resp, 200
+
+@auth_bp.route("/me", methods=["GET"])
+@jwt_required()
+def get_me():
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+    return jsonify({"user": user.to_dict()}), 200

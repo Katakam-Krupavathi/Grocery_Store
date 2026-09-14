@@ -1,8 +1,35 @@
-<!doctype html>
-<html>
-  <head><title>Payment Success</title></head>
-  <body>
-    <h1>Payment Successful</h1>
-    <p>Thank you — your payment was successful.</p>
-  </body>
-</html>
+﻿{% extends 'base.html' %}
+
+{% block title %}Payment Successful - FreshMart Grocery{% endblock %}
+
+{% block content %}
+<div class="container py-5 text-center">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card shadow-sm border-0 p-5">
+        <div class="mb-3 text-success display-1">
+          <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <h2 class="fw-bold mb-2">Payment Successful!</h2>
+        <p class="text-muted">
+          Thank you for your order. Your payment has been processed successfully and an invoice confirmation has been sent to your email.
+        </p>
+        {% if order %}
+        <div class="alert alert-light border my-3">
+          <strong>Order Reference:</strong> #{{ order.id }}<br>
+          <strong>Total Paid:</strong> ${{ '%.2f'|format(order.total_amount) }}
+        </div>
+        {% endif %}
+        <div class="d-flex justify-content-center gap-3 mt-4">
+          <a href="{{ url_for('main.orders_page') }}" class="btn btn-success px-4">
+            <i class="bi bi-bag-check"></i> View My Orders
+          </a>
+          <a href="{{ url_for('main.products_page') }}" class="btn btn-outline-secondary px-4">
+            Continue Shopping
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
